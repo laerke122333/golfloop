@@ -1,0 +1,58 @@
+name: Deploy GolfLoop to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Hent projektet
+        uses: actions/checkout@v6
+
+      - name: Opsæt Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installer dependencies
+        run: npm ci
+
+      - name: Byg GolfLoop
+        run: npm run build -- --base=/golfloop/
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+
+      - name: Lav SPA fallback
+        run: cp dist/index.html dist/404.html
+
+      - name: Opsæt GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload build
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: "./dist"
+
+      - name: Udgiv GolfLoop
+        id: deployment
+        uses: actions/deploy-pages@v4
